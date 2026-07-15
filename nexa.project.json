@@ -3,7 +3,7 @@
     "slug": "nexa-desktop-secretary-ai-pro",
     "uuid": "84feaa7d-c81d-4b20-a4b9-6e4cf51ea135",
     "type": "electron",
-    "version": "1.0.6",
+    "version": "0.1.0",
     "target": "windows-x64",
     "managed_by": "Nexa App Builder Pro",
     "created_at": "2026-07-15 12:52:04",
@@ -12,5 +12,7 @@
         "backup_before_changes": true,
         "rollback_enabled": true
     },
-    "updated_at": "2026-07-15 15:23:32"
+    "updated_at": "2026-07-15 15:51:28",
+    "application_version": "0.1.0",
+    "workspace_revision": "1.0.8"
 }

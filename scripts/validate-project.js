@@ -29,8 +29,8 @@ if (failures.length === 0) {
   const pkg = readJson('package.json');
   const project = readJson('nexa.project.json');
   if (pkg.main !== 'main.js') failures.push('package.json main must remain main.js');
-  if (pkg.version !== '0.1.0') failures.push('package.json must remain the Phase 1 baseline version 0.1.0');
-  if (project.version !== '0.1.0') failures.push('nexa.project.json must match Phase 1 version 0.1.0');
+  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(String(pkg.version || ''))) failures.push('package.json must contain a valid application version'); /* NEXA_DYNAMIC_APPLICATION_VERSION_V1 */
+  const nexaProjectApplicationVersion = String(project.application_version || project.version || ''); if (nexaProjectApplicationVersion !== String(pkg.version || '')) failures.push('nexa.project.json application version must match package.json version');
   if (!Array.isArray(pkg.build?.files) || !pkg.build.files.includes('core/**/*')) {
     failures.push('Electron build.files must include core/**/*');
   }
