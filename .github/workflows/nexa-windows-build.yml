@@ -1,0 +1,173 @@
+name: Nexa Windows Build
+on:
+  workflow_dispatch:
+    inputs:
+      nexa_version:
+        description: Nexa project version
+        required: false
+        default: manual
+      nexa_build_id:
+        description: Nexa build record ID
+        required: false
+        default: "0"
+permissions:
+  contents: read
+concurrency:
+  group: nexa-windows-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate-and-build:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      CI: "true"
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Apply Nexa version
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.nexa_version }}"
+          if ($version -match "^\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$") {
+            npm version $version --no-git-tag-version --allow-same-version
+          }
+      - name: Resolve dependency lock
+        shell: pwsh
+        run: |
+          # NEXA_DEPENDENCY_LOCK_RECOVERY_V2
+          if (-not (Test-Path package.json)) { throw "package.json was not found" }
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw "npm could not resolve package-lock.json" }
+          if (-not (Test-Path package-lock.json)) { throw "package-lock.json was not generated" }
+          node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));const lock=JSON.parse(fs.readFileSync("package-lock.json","utf8"));if(!lock.packages||!Object.prototype.hasOwnProperty.call(lock.packages,""))throw new Error("package-lock.json has no root package record");const deps={...(pkg.dependencies||{}),...(pkg.devDependencies||{})};const missing=Object.keys(deps).filter(name=>!Object.prototype.hasOwnProperty.call(lock.packages,`node_modules/${name}`));if(missing.length)throw new Error(`package-lock.json is missing resolved dependencies: ${missing.join(", ")}`);console.log(`Dependency lock verified for ${Object.keys(deps).length} declared package(s).`);'
+          if ($LASTEXITCODE -ne 0) { throw "package-lock.json verification failed" }
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      # NEXA_VALIDATION_MATRIX_V1
+      - name: Run delivery validator
+        id: nexa_delivery
+        continue-on-error: true
+        run: npm run validate:delivery --if-present
+
+      - name: Run internal application validator
+        id: nexa_internal
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          if (Test-Path "test-lab/scripts/validate.js") {
+            node test-lab/scripts/validate.js
+          } elseif (Test-Path "scripts/validate.js") {
+            node scripts/validate.js
+          } else {
+            Write-Host "No standalone internal validator was declared."
+          }
+
+      - name: Run unit and acceptance tests
+        id: nexa_tests
+        continue-on-error: true
+        run: npm test --if-present
+
+      - name: Run Electron UI smoke test
+        id: nexa_ui_smoke
+        continue-on-error: true
+        run: npm run ui:smoke --if-present
+
+      - name: Validation gate
+        shell: pwsh
+        run: |
+          $checks = @(
+            [pscustomobject]@{ name = "Delivery validator"; outcome = "${{ steps.nexa_delivery.outcome }}" },
+            [pscustomobject]@{ name = "Internal validator"; outcome = "${{ steps.nexa_internal.outcome }}" },
+            [pscustomobject]@{ name = "Unit and acceptance tests"; outcome = "${{ steps.nexa_tests.outcome }}" },
+            [pscustomobject]@{ name = "Electron UI smoke"; outcome = "${{ steps.nexa_ui_smoke.outcome }}" }
+          )
+          $lines = @("Nexa validation matrix", "Commit: ${{ github.sha }}", "Run: ${{ github.run_id }}", "")
+          foreach ($check in $checks) { $lines += ("{0}: {1}" -f $check.name, $check.outcome) }
+          $lines | Set-Content nexa-validation-summary.txt -Encoding UTF8
+          $checks | ConvertTo-Json | Set-Content nexa-validation-summary.json -Encoding UTF8
+          Get-Content nexa-validation-summary.txt
+          $failed = @($checks | Where-Object { $_.outcome -ne "success" })
+          if ($failed.Count -gt 0) {
+            throw ("Validation failed in: " + (($failed | ForEach-Object { $_.name }) -join ", "))
+          }
+      - name: Build installer and portable app
+        run: npm run build:win
+      - name: Create Windows ZIP package
+        shell: pwsh
+        run: |
+          if (-not (Test-Path release\win-unpacked)) { throw "win-unpacked directory was not created" }
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $productName = [string]$package.build.productName
+          if ([string]::IsNullOrWhiteSpace($productName)) { $productName = [string]$package.name }
+          $safeName = ($productName -replace '[^0-9A-Za-z._-]+', '-').Trim('-')
+          $version = [string]$package.version
+          Compress-Archive -Path release\win-unpacked\* -DestinationPath "release\$safeName-$version-x64-ZIP.zip" -CompressionLevel Optimal -Force
+      - name: Create build provenance manifest
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $mainPath = if ($package.main) { [string]$package.main } else { "main.js" }
+          $rendererPath = "src/index.html"
+          $manifest = [ordered]@{
+            project_version = [string]$package.version
+            product_name = [string]$package.build.productName
+            package_name = [string]$package.name
+            build_id = "${{ inputs.nexa_build_id }}"
+            requested_version = "${{ inputs.nexa_version }}"
+            commit_sha = "${{ github.sha }}"
+            workflow_run_id = "${{ github.run_id }}"
+            generated_at_utc = (Get-Date).ToUniversalTime().ToString("o")
+            main_file = $mainPath
+            main_sha256 = if (Test-Path $mainPath) { (Get-FileHash $mainPath -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
+            renderer_file = $rendererPath
+            renderer_sha256 = if (Test-Path $rendererPath) { (Get-FileHash $rendererPath -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
+          }
+          $manifest | ConvertTo-Json -Depth 5 | Set-Content release\nexa-build-manifest.json -Encoding UTF8
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nexa-Windows-Installer-${{ inputs.nexa_version }}-Build-${{ inputs.nexa_build_id }}
+          path: |
+            release/**/*-Installer.exe
+            release/**/*.blockmap
+            release/**/*.yml
+            release/nexa-build-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload portable Windows app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nexa-Windows-Portable-${{ inputs.nexa_version }}-Build-${{ inputs.nexa_build_id }}
+          path: |
+            release/**/*-Portable.exe
+            release/nexa-build-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload Windows ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nexa-Windows-ZIP-${{ inputs.nexa_version }}-Build-${{ inputs.nexa_build_id }}
+          path: |
+            release/**/*-ZIP.zip
+            release/nexa-build-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nexa-Windows-Diagnostics-${{ inputs.nexa_version }}-Build-${{ inputs.nexa_build_id }}
+          path: |
+            nexa-validation-summary.txt
+            nexa-validation-summary.json
+            nexa-build-manifest.json
+            release/builder-debug.yml
+            release/builder-effective-config.yaml
+          if-no-files-found: ignore
+          retention-days: 14

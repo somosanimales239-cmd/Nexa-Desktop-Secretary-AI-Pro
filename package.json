@@ -1,0 +1,60 @@
+{
+  "name": "nexa-desktop-secretary-ai-pro",
+  "version": "0.1.0",
+  "description": "Nexa Desktop Secretary AI Pro for Windows 10 and Windows 11",
+  "main": "main.js",
+  "author": "Nexa App Builder Pro",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "validate": "node --check main.js && node --check preload.js && node --check src/app.js",
+    "build:win": "npm run validate && electron-builder --win nsis portable --publish never"
+  },
+  "devDependencies": {
+    "electron": "43.1.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.nexa.desktop.secretary.ai.pro",
+    "productName": "Nexa Desktop Secretary AI Pro",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "nexa.project.json",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "NexaDesktopSecretary-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nexa Desktop Secretary AI Pro",
+      "artifactName": "NexaDesktopSecretarySetup.${ext}"
+    },
+    "portable": {
+      "artifactName": "NexaDesktopSecretaryPortable.${ext}"
+    }
+  }
+}
