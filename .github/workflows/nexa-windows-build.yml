@@ -58,34 +58,42 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "package-lock.json verification failed" }
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      # NEXA_VALIDATION_MATRIX_V1
+      # NEXA_VALIDATION_MATRIX_V2
+      - name: Verify required validation commands
+        shell: pwsh
+        run: |
+          if (-not (Test-Path package.json)) { throw "package.json was not found" }
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $required = @("validate:delivery", "validate:project", "test", "ui:smoke")
+          foreach ($name in $required) {
+            $property = $package.scripts.PSObject.Properties[$name]
+            if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) { throw "package.json is missing required script: $name" }
+          }
+          $smoke = [string]$package.scripts.PSObject.Properties["ui:smoke"].Value
+          $match = [regex]::Match($smoke, '(?i)([A-Za-z0-9._/\\-]*ui[-_]?smoke[A-Za-z0-9._/\\-]*\.(?:js|mjs|cjs))')
+          if (-not $match.Success) { throw "ui:smoke does not reference a local JavaScript harness" }
+          $smokePath = $match.Groups[1].Value -replace '/', [IO.Path]::DirectorySeparatorChar
+          if (-not (Test-Path $smokePath)) { throw "Required UI smoke test is missing: $smokePath" }
+
       - name: Run delivery validator
         id: nexa_delivery
         continue-on-error: true
-        run: npm run validate:delivery --if-present
+        run: npm run validate:delivery
 
       - name: Run internal application validator
         id: nexa_internal
         continue-on-error: true
-        shell: pwsh
-        run: |
-          if (Test-Path "test-lab/scripts/validate.js") {
-            node test-lab/scripts/validate.js
-          } elseif (Test-Path "scripts/validate.js") {
-            node scripts/validate.js
-          } else {
-            Write-Host "No standalone internal validator was declared."
-          }
+        run: npm run validate:project
 
       - name: Run unit and acceptance tests
         id: nexa_tests
         continue-on-error: true
-        run: npm test --if-present
+        run: npm test
 
       - name: Run Electron UI smoke test
         id: nexa_ui_smoke
         continue-on-error: true
-        run: npm run ui:smoke --if-present
+        run: npm run ui:smoke
 
       - name: Validation gate
         shell: pwsh
@@ -179,5 +187,7 @@ jobs:
             nexa-build-manifest.json
             release/builder-debug.yml
             release/builder-effective-config.yaml
+            artifacts/ui-smoke-report.json
+            artifacts/ui-smoke-failure.txt
           if-no-files-found: ignore
           retention-days: 14
