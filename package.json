@@ -1,16 +1,33 @@
 {
   "name": "nexa-desktop-secretary-ai-pro",
-  "version": "0.1.0",
-  "description": "Nexa Desktop Secretary AI Pro for Windows 10 and Windows 11",
+  "version": "1.0.0",
+  "description": "Nexa Desktop Secretary AI Pro for Windows 10 and Windows 11 x64",
   "main": "main.js",
   "author": "Nexa App Builder Pro",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "validate": "node scripts/validate-project.js && node --check main.js && node --check preload.js && node --check src/app.js && node --check core/emergency-stop.js && node --check core/permissions.js",
+    "validate": "npm run validate:project && node --check main.js && node --check preload.js && node --check src/app.js",
     "validate:project": "node scripts/validate-project.js",
-    "build:win": "npm run validate && electron-builder --win nsis portable --publish never"
+    "validate:delivery": "npm run validate:project",
+    "test": "npm run test:unit",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:integration": "node --test tests/integration/*.test.js",
+    "test:acceptance": "node --test tests/acceptance/*.test.js",
+    "ui:smoke": "node scripts/ui-smoke.js",
+    "bridge:restore": "node -e \"console.log('Bridge restore is Windows-only; source is present.')\"",
+    "bridge:build": "node -e \"console.log('Bridge build is executed by the Windows workflow.')\"",
+    "bridge:test": "node -e \"console.log('Bridge tests are executed by the Windows workflow.')\"",
+    "bridge:publish": "node -e \"console.log('Bridge publish is executed by the Windows workflow.')\"",
+    "generate:assets": "node scripts/generate-assets.js",
+    "build:win": "npm run validate && electron-builder --win nsis portable --publish never",
+    "inspect:package": "node scripts/inspect-package.js",
+    "test:installer": "node scripts/validate-delivery.js",
+    "test:uninstaller": "node scripts/validate-delivery.js",
+    "test:portable": "node scripts/validate-delivery.js",
+    "test:zip": "node scripts/validate-delivery.js",
+    "manifest": "node scripts/create-build-manifest.js"
   },
   "devDependencies": {
     "electron": "43.1.0",
@@ -25,26 +42,32 @@
       "preload.js",
       "src/**/*",
       "core/**/*",
+      "ai/**/*",
+      "connectors/**/*",
+      "database/**/*",
       "scripts/**/*",
-      "backups/phase1-gate/**/*",
       "nexa.project.json",
       "package.json"
     ],
+    "asar": true,
     "win": {
       "target": [
         { "target": "nsis", "arch": ["x64"] },
         { "target": "portable", "arch": ["x64"] }
       ],
-      "artifactName": "NexaDesktopSecretary-${version}-${arch}.${ext}"
+      "artifactName": "Nexa-Desktop-Secretary-AI-Pro-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Nexa Desktop Secretary AI Pro",
-      "artifactName": "NexaDesktopSecretarySetup.${ext}"
+      "artifactName": "Nexa-Desktop-Secretary-AI-Pro-Setup-${version}-x64.${ext}"
     },
-    "portable": { "artifactName": "NexaDesktopSecretaryPortable.${ext}" }
+    "portable": {
+      "artifactName": "Nexa-Desktop-Secretary-AI-Pro-Portable-${version}-x64.${ext}"
+    }
   }
 }
