@@ -76,10 +76,13 @@
             "createDesktopShortcut": true,
             "createStartMenuShortcut": true,
             "shortcutName": "Nexa Desktop Secretary AI Pro",
-            "artifactName": "Nexa-Desktop-Secretary-AI-Pro-Setup-${version}-x64.${ext}"
+            "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+            "perMachine": false,
+            "uninstallDisplayName": "Nexa Desktop Secretary AI Pro",
+            "deleteAppDataOnUninstall": false
         },
         "portable": {
-            "artifactName": "Nexa-Desktop-Secretary-AI-Pro-Portable-${version}-x64.${ext}"
+            "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
         }
     }
 }
