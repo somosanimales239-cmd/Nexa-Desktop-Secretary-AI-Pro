@@ -1,0 +1,19 @@
+{
+  "purpose": "Selective Phase 1 repair backup manifest",
+  "createdAt": "2026-07-15T14:32:10-04:00",
+  "workspace": "84feaa7d-c81d-4b20-a4b9-6e4cf51ea135",
+  "source": "existing local Nexa backups supplied as engineering evidence",
+  "restorePolicy": "Restore application files selectively; never overwrite userData, safeStorage or database files.",
+  "availableSnapshots": [
+    "84feaa7d-c81d-4b20-a4b9-6e4cf51ea135/v1.0.4-20260715-143210",
+    "84feaa7d-c81d-4b20-a4b9-6e4cf51ea135/v1.0.3-20260715-125755",
+    "84feaa7d-c81d-4b20-a4b9-6e4cf51ea135/v1.0.2-20260715-125733"
+  ],
+  "protectedData": ["userData", "safeStorage", "database.sqlite", "server storage"],
+  "activeWorkspaceHashes": {
+    "main.js": "3b76fa3c000ec6069d6c6c00d6e73c2ba068b69205595ad88548a5b194ace3cf",
+    "preload.js": "2c53fbcde87294f6885f263ebb49ed7188d61f6872fd1e0d05c19af6af36fcc5",
+    "src/index.html": "1b590e90b9953b472ec29b6fb4789ddfba2fbad9e1bb8e8b040cd176b18b808c",
+    "src/app.js": "912bb5b94df657e758f326a4d73eeca2bc27849226ab7f9059647c6f43f9da91"
+  }
+}

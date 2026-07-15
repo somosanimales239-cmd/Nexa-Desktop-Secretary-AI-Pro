@@ -8,7 +8,8 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "validate": "node --check main.js && node --check preload.js && node --check src/app.js",
+    "validate": "node scripts/validate-project.js && node --check main.js && node --check preload.js && node --check src/app.js && node --check core/emergency-stop.js && node --check core/permissions.js",
+    "validate:project": "node scripts/validate-project.js",
     "build:win": "npm run validate && electron-builder --win nsis portable --publish never"
   },
   "devDependencies": {
@@ -18,30 +19,21 @@
   "build": {
     "appId": "com.nexa.desktop.secretary.ai.pro",
     "productName": "Nexa Desktop Secretary AI Pro",
-    "directories": {
-      "output": "release"
-    },
+    "directories": { "output": "release" },
     "files": [
       "main.js",
       "preload.js",
       "src/**/*",
+      "core/**/*",
+      "scripts/**/*",
+      "backups/phase1-gate/**/*",
       "nexa.project.json",
       "package.json"
     ],
     "win": {
       "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
       ],
       "artifactName": "NexaDesktopSecretary-${version}-${arch}.${ext}"
     },
@@ -53,8 +45,6 @@
       "shortcutName": "Nexa Desktop Secretary AI Pro",
       "artifactName": "NexaDesktopSecretarySetup.${ext}"
     },
-    "portable": {
-      "artifactName": "NexaDesktopSecretaryPortable.${ext}"
-    }
+    "portable": { "artifactName": "NexaDesktopSecretaryPortable.${ext}" }
   }
 }
